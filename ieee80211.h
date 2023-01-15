@@ -1,3 +1,5 @@
+#pragma pack(1)
+
 struct IEEE80211_request_header {
   uint8_t version:2;
   uint8_t type:2;

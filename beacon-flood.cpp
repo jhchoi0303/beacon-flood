@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <unistd.h>
 #include "radiotap.h"
 #include "ieee80211.h"
 
@@ -50,6 +51,8 @@ int main(int argc, char* argv[]) {
   
   char ssid_buffer[256];
   while (fgets(ssid_buffer, 256, fp)) {
+    int len = strlen(ssid_buffer);
+    ssid_buffer[len - 1] = 0;
     ssid_list.push_back(ssid_buffer);
     uint8_t t = (uint8_t)ssid_list.size();
     mac_address tmp_bssid = {t, t, t, t, t, t};
@@ -63,7 +66,6 @@ int main(int argc, char* argv[]) {
   while (true) {
     uint8_t *packet_ptr = packet;
     
-    std::string curSSID = ssid_list[i];
     radiotap_header rt_header;
     
     rt_header.version = 0x00;
@@ -82,8 +84,8 @@ int main(int argc, char* argv[]) {
     request_header.flags = 0x00;
     request_header.duration = 0x0000;
     
-    memcpy(packet_ptr, reinterpret_cast<uint8_t*>(&request_header), sizeof(IEEE80211_request_header));
-    packet_ptr += sizeof(IEEE80211_request_header);
+    memcpy(packet_ptr, reinterpret_cast<uint8_t*>(&request_header), sizeof(request_header));
+    packet_ptr += sizeof(request_header);
     
     IEEE80211_beacon_frame beacon_frame;
     
@@ -101,21 +103,24 @@ int main(int argc, char* argv[]) {
     wireless_management.timestamp = 0x0000000000000000;
     wireless_management.beacon_interval = 0x0064;
     wireless_management.capabilities_inform = 0x0c11;
-    
     memcpy(packet_ptr, reinterpret_cast<uint8_t*>(&wireless_management), sizeof(IEEE80211_wireless_management));
     packet_ptr += sizeof(IEEE80211_wireless_management);
     
     packet_ptr[0] = IEEE80211_wireless_management::tag_number::SSID_PARAMETER_SET;
     packet_ptr[1] = ssid_list[i].length();
-    memcpy(packet_ptr + 2, reinterpret_cast<uint8_t*>(&ssid_list[i]), ssid_list[i].length());
-    packet_ptr += 2 + packet_ptr[1];
+    packet_ptr += 2;
+    char tmp[256];
+    sprintf(tmp, "%s", ssid_list[i].c_str());
+    memcpy(packet_ptr, reinterpret_cast<uint8_t*>(tmp), ssid_list[i].length());
+    packet_ptr += ssid_list[i].length();
     
     int send_res = pcap_sendpacket(pcap, packet, packet_ptr - packet);
-    
+    usleep(1000);
     if (send_res != 0) {
       fprintf(stderr, "pcap_sendpacket return %d\n", send_res);
       break;
     }
+    
     
     i++;
     if (i == (int)ssid_list.size()) {

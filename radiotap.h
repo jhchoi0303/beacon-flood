@@ -1,3 +1,5 @@
+#pragma pack(1)
+
 struct radiotap_header {
   uint8_t version;
   uint8_t pad;
